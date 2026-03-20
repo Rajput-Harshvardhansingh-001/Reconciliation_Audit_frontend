@@ -20,21 +20,40 @@ const SignUp = () => {
     setEndUserObj((obj) => ({ ...obj, [key]: event.target.value }))
   }
 
-  const getSignupCall = async () => {
-    try {
-      const EndUserData = await axios.post("http://localhost:8080/signup/up", endUserObj);
-      if (EndUserData.status === 202) {
-        alert("You have been registered");
-        window.location.href = "/signin";
-        // toSignInPage();
+ const getSignupCall = async (e) => {
+  e.preventDefault(); // IMPORTANT (form reload stop)
+
+  try {
+    const response = await axios.post(
+      "http://localhost:8080/signup/up",
+      endUserObj,
+      { withCredentials: true }
+    );
+
+    if (response.status === 201) {
+      alert("You have been registered");
+      window.location.href = "/signin";
+    }
+
+  } catch (error) {
+
+    if (error.response) {
+      // Backend validation errors
+      if (error.response.status === 400) {
+        alert("Validation Error: " + JSON.stringify(error.response.data));
+      }
+      else if (error.response.status === 409) {
+        alert("Username already exists");
       }
       else {
-        alert("You have not been registered");
+        alert("Something went wrong");
       }
-    } catch (error) {
-      console.log(error.message);
+    } else {
+      alert("Server not reachable");
     }
+
   }
+};
 
   return (
     <div className="bg-[#f8fafc] font-display min-h-screen flex flex-col">
