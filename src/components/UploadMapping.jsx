@@ -1,6 +1,81 @@
-import React from "react";
-
+import React, { useState } from "react";
+import axios from "axios";
 const UploadMapping = () => {
+
+axios.defaults.withCredentials = true;
+const [file, setFile] = useState(null);
+  const [loading, setLoading] = useState(false);
+const CsvUploader = () => {
+
+  
+
+  // Handle file selection
+  const handleFileChange = (e) => {
+    const selectedFile = e.target.files[0];
+
+    if (!selectedFile) return;
+
+    // ✅ Check file type
+    if (selectedFile.type !== "text/csv") {
+      alert("Only CSV file allowed!");
+      return;
+    }
+
+    // ✅ Check size (50MB)
+    const maxSize = 50 * 1024 * 1024;
+    if (selectedFile.size > maxSize) {
+      alert("File size must be less than 50MB!");
+      return;
+    }
+
+    setFile(selectedFile);
+  };
+
+  // Upload API call
+  const handleUpload = async () => {
+    if (!file) {
+      alert("Please select a file first");
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+      setLoading(true);
+
+      const response = await axios.post(
+        "http://localhost:8080/api/upload", // change according to your backend
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+          withCredentials: true, // IMPORTANT for session
+        }
+      );
+
+      if (response.status === 200) {
+        alert("File uploaded successfully!");
+        setFile(null);
+      }
+
+    } catch (error) {
+      if (error.response) {
+        alert("Upload failed: " + error.response.data);
+      } else {
+        alert("Server not reachable");
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+
+
+ }
+
+
   return (
     <div className="bg-background-light dark:bg-background-dark font-display text-slate-900 dark:text-slate-100 min-h-screen">
       <div className="relative flex h-auto min-h-screen w-full flex-col group/design-root overflow-x-hidden">
@@ -48,7 +123,7 @@ const UploadMapping = () => {
                     <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 text-center">
                       Supported: .csv, .xlsx, .xls (Max 50MB)
                     </p>
-                    <button className="mt-6 bg-primary text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-primary/90 transition-colors shadow-sm">
+                    <button className="mt-6 bg-primary text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-primary/90 transition-colors shadow-sm" onClick={CsvUploader}>
                       Select File
                     </button>
                   </div>

@@ -9,6 +9,7 @@ import SignIn from "./components/SignIn";
 import SignUp from "./components/SignUp";
 
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
+import CsvUpload from "./components/CsvUpload";
 
 function AppRoutes() {
   const location = useLocation();
@@ -26,6 +27,7 @@ function AppRoutes() {
         <Route path="/reconciliation" element={<Reconciliation />} />
         <Route path="/record-audit" element={<RecordAudit />} />
         <Route path="/upload-mapping" element={<UploadMapping />} />
+        <Route path="/csv" element={<CsvUpload />} />
         <Route
           path="*"
           element={
