@@ -1,27 +1,43 @@
 import React, { useState } from "react";
 import axios from "axios";
+import Papa from "papaparse";
+import * as XLSX from "xlsx";
+
 const UploadMapping = () => {
+  axios.defaults.withCredentials = true;
 
-axios.defaults.withCredentials = true;
-const [file, setFile] = useState(null);
+  const [file, setFile] = useState(null);
+
   const [loading, setLoading] = useState(false);
-const CsvUploader = () => {
 
-  
+  const [tableData, setTableData] = useState([]);
 
-  // Handle file selection
+  const [headers, setHeaders] = useState([]);
+
+  const systemFields = ["username", "email", "amount", "date"];
+
+  const [mapping, setMapping] = useState({});
+
+  const handleMappingChange = (fileColumn, value) => {
+    setMapping((prev) => ({
+      ...prev,
+      [fileColumn]: value,
+    }));
+  };
+
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0];
-
     if (!selectedFile) return;
 
-    // ✅ Check file type
-    if (selectedFile.type !== "text/csv") {
-      alert("Only CSV file allowed!");
+    const fileName = selectedFile.name.toLowerCase();
+
+    // ✅ Allow CSV and XLSX
+    if (!fileName.endsWith(".csv") && !fileName.endsWith(".xlsx")) {
+      alert("Only CSV or XLSX files are allowed!");
       return;
     }
 
-    // ✅ Check size (50MB)
+    // ✅ Size check (50MB)
     const maxSize = 50 * 1024 * 1024;
     if (selectedFile.size > maxSize) {
       alert("File size must be less than 50MB!");
@@ -29,6 +45,43 @@ const CsvUploader = () => {
     }
 
     setFile(selectedFile);
+  };
+
+  const handleFileview = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const fileName = file.name.toLowerCase();
+
+    // CSV
+    if (fileName.endsWith(".csv")) {
+      Papa.parse(file, {
+        header: true,
+        skipEmptyLines: true,
+        complete: function (results) {
+          setHeaders(Object.keys(results.data[0]));
+          setTableData(results.data.slice(0, 10)); // preview first 10 rows
+        },
+      });
+    }
+
+    // XLSX
+    else if (fileName.endsWith(".xlsx")) {
+      const reader = new FileReader();
+
+      reader.onload = (e) => {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: "array" });
+
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const jsonData = XLSX.utils.sheet_to_json(sheet);
+
+        setHeaders(Object.keys(jsonData[0]));
+        setTableData(jsonData.slice(0, 10));
+      };
+
+      reader.readAsArrayBuffer(file);
+    }
   };
 
   // Upload API call
@@ -52,17 +105,19 @@ const CsvUploader = () => {
             "Content-Type": "multipart/form-data",
           },
           withCredentials: true, // IMPORTANT for session
-        }
+        },
       );
 
       if (response.status === 200) {
+        debugger;
         alert("File uploaded successfully!");
         setFile(null);
       }
-
     } catch (error) {
+      debugger;
       if (error.response) {
-        alert("Upload failed: " + error.response.data);
+        console.log(error); // IMPORTANT
+        alert("Upload failed: " + (error.response?.data || error.message));
       } else {
         alert("Server not reachable");
       }
@@ -71,16 +126,10 @@ const CsvUploader = () => {
     }
   };
 
-
-
- }
-
-
   return (
     <div className="bg-background-light dark:bg-background-dark font-display text-slate-900 dark:text-slate-100 min-h-screen">
       <div className="relative flex h-auto min-h-screen w-full flex-col group/design-root overflow-x-hidden">
         <div className="layout-container flex h-full grow flex-col">
-
           <main className="flex-1 flex flex-col max-w-[1200px] mx-auto w-full px-6 py-8">
             <div className="flex flex-col gap-2 mb-8">
               <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
@@ -121,25 +170,56 @@ const CsvUploader = () => {
                       Drop your CSV or Excel file here
                     </p>
                     <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 text-center">
-                      Supported: .csv, .xlsx, .xls (Max 50MB)
+                      Supported: .csv, .xlsx (Max 50MB)
                     </p>
-                    <button className="mt-6 bg-primary text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-primary/90 transition-colors shadow-sm" onClick={CsvUploader}>
-                      Select File
-                    </button>
-                  </div>
-                  <div className="mt-6 p-4 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-800 flex items-start gap-3">
-                    <span className="material-symbols-outlined text-emerald-600 dark:text-emerald-400 mt-0.5">
-                      check_circle
-                    </span>
-                    <div>
-                      <p className="text-sm font-bold text-emerald-900 dark:text-emerald-100">
-                        Q3_Reconciliation_Export.csv
-                      </p>
-                      <p className="text-xs text-emerald-700 dark:text-emerald-400">
-                        1.2 MB • 2,450 records detected
-                      </p>
+                    <div className="flex items-center">
+                      <input
+                        type="file"
+                        accept=".csv, .xlsx"
+                        onChange={handleFileChange}
+                        id="file-input"
+                        className="hidden"
+                      />
+                      <label
+                        htmlFor="file-input"
+                        className="mt-6 bg-primary text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-primary/90 transition-colors shadow-sm"
+                      >
+                        Select
+                      </label>
                     </div>
                   </div>
+                  <div className="mt-6 p-4 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-800 flex items-start gap-3">
+                    {file && (
+                      <span className="material-symbols-outlined text-emerald-600 dark:text-emerald-400 mt-0.5">
+                        check_circle
+                      </span>
+                    )}
+                    <div>
+                      {file && (
+                        <p className="text-sm font-bold text-emerald-900 dark:text-emerald-100">
+                          {file.name}
+                        </p>
+                      )}
+
+                      {file && (
+                        <p className="text-xs text-emerald-700 dark:text-emerald-400">
+                          ({(file.size / 1024).toFixed(2)} KB)
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  {
+                    /*upload button here*/ 
+                    file && (
+                      <button
+                        onClick={handleUpload}
+                        disabled={loading}
+                        className="block mx-auto bg-blue-600 text-white px-4 py-2 mt-5 rounded"
+                      >
+                        {loading ? "Uploading..." : "Upload"}
+                      </button>
+                    )
+                  }
                 </div>
               </div>
               <div className="lg:col-span-8 flex flex-col gap-6">
@@ -161,24 +241,29 @@ const CsvUploader = () => {
                     <table className="w-full text-left border-collapse text-sm">
                       <thead>
                         <tr className="bg-slate-50 dark:bg-slate-800">
-                          <th className="p-3 font-semibold border-b border-slate-200 dark:border-slate-700">
-                            TXN_ID
-                          </th>
-                          <th className="p-3 font-semibold border-b border-slate-200 dark:border-slate-700">
-                            DATE_VAL
-                          </th>
-                          <th className="p-3 font-semibold border-b border-slate-200 dark:border-slate-700">
-                            CURR_AMT
-                          </th>
-                          <th className="p-3 font-semibold border-b border-slate-200 dark:border-slate-700">
-                            REF_CODE
-                          </th>
-                          <th className="p-3 font-semibold border-b border-slate-200 dark:border-slate-700">
-                            STATUS
-                          </th>
+                          {headers.map((h, index) => (
+                            <th
+                              className="p-3 font-semibold border-b border-slate-200 dark:border-slate-700"
+                              key={index}
+                            >
+                              TXN_ID{h}
+                            </th>
+                          ))}
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                        {tableData.map((row, i) => (
+                          <tr
+                            className="hover:bg-slate-50 dark:hover:bg-slate-800/50"
+                            key={i}
+                          >
+                            {headers.map((h, j) => (
+                              <td className="p-3" key={j}>
+                                {row[h]}
+                              </td>
+                            ))}
+                          </tr>
+                        ))}
                         <tr className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
                           <td className="p-3 font-mono text-xs">TRX-00982</td>
                           <td className="p-3">2023-10-12</td>
@@ -334,13 +419,22 @@ const CsvUploader = () => {
                 © 2024 R2R Reconciliation Platform. Confidential Financial Tool.
               </p>
               <div className="flex gap-6">
-                <a className="text-sm text-slate-500 hover:text-primary" href="#">
+                <a
+                  className="text-sm text-slate-500 hover:text-primary"
+                  href="#"
+                >
                   User Guide
                 </a>
-                <a className="text-sm text-slate-500 hover:text-primary" href="#">
+                <a
+                  className="text-sm text-slate-500 hover:text-primary"
+                  href="#"
+                >
                   Compliance
                 </a>
-                <a className="text-sm text-slate-500 hover:text-primary" href="#">
+                <a
+                  className="text-sm text-slate-500 hover:text-primary"
+                  href="#"
+                >
                   Support
                 </a>
               </div>

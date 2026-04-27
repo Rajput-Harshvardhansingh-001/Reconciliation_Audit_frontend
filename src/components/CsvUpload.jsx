@@ -1,12 +1,15 @@
 import React, { useState } from "react";
 import axios from "axios";
-
+import Papa from "papaparse";
+import * as XLSX from "xlsx";
 axios.defaults.withCredentials = true;
 
 const CsvUpload = () => {
 
   const [file, setFile] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [tableData, setTableData] = useState([]);
+  const [headers, setHeaders] = useState([]);
 
   const handleFileChange = (e) => {
   const selectedFile = e.target.files[0];
@@ -72,16 +75,61 @@ const CsvUpload = () => {
     }
   };
 
+   const handleFileview = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const fileName = file.name.toLowerCase();
+
+    // CSV
+    if (fileName.endsWith(".csv")) {
+      Papa.parse(file, {
+        header: true,
+        skipEmptyLines: true,
+        complete: function (results) {
+          setHeaders(Object.keys(results.data[0]));
+          setTableData(results.data.slice(0, 10)); // preview first 10 rows
+        },
+      });
+    }
+
+    // XLSX
+    else if (fileName.endsWith(".xlsx")) {
+      const reader = new FileReader();
+
+      reader.onload = (e) => {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: "array" });
+
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const jsonData = XLSX.utils.sheet_to_json(sheet);
+
+        setHeaders(Object.keys(jsonData[0]));
+        setTableData(jsonData.slice(0, 10));
+      };
+
+      reader.readAsArrayBuffer(file);
+    }
+  }
+
   return (
     <div className="p-4 border rounded-lg shadow-md w-96">
       <h2 className="text-lg font-bold mb-3">Upload CSV File</h2>
-
-      <input
-  type="file"
-  accept=".csv, .xlsx"
-  onChange={handleFileChange}
-  className="mb-3"
-/>
+<div className="flex items-center">
+  <input
+    type="file"
+    accept=".csv, .xlsx"
+    onChange={handleFileChange}
+    id="file-input"
+    className="hidden"
+  />
+  <label
+    htmlFor="file-input"
+    className="mt-6 mb-4 bg-primary text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-primary/90 transition-colors shadow-sm"
+  >
+    Select
+  </label>
+</div>   
 
       <button
         onClick={handleUpload}
