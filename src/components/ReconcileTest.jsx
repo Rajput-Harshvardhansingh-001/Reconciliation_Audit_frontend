@@ -1,36 +1,71 @@
+import React, { useState } from "react";
 import axios from "axios";
-import { useState } from "react";
 
-function ReconcileTest() {
+const ReconcileTest = () => {
 
+  const [accountId, setAccountId] = useState("");
   const [data, setData] = useState([]);
 
   const handleReconcile = async () => {
     try {
-      const response = await axios.post("http://localhost:8080/reconcile");
-
-      console.log("FULL RESPONSE:", response);
-
-      // IMPORTANT: ye line change ho sakti hai depending backend
-      setData(response.data);
-
-    } catch (error) {
-      console.error("API ERROR:", error);
+      const res = await axios.post(
+        `http://localhost:8080/reconcile/run`
+      );setData(data.data);
+    } catch (err) {
+      debugger;
+      console.error(err);
+      alert("Error in reconciliation");
     }
   };
 
   return (
-    <div>
-      <button onClick={handleReconcile}>Run Reconcile</button>
+    <div style={{ padding: "20px" }}>
+      <h2>Reconciliation Test Panel</h2>
 
-      {Array.isArray(data) &&
-        data.map((item, index) => (
-          <div key={index}>
-            {item.account_holder_name} | {item.account_id} | {item.balance}
-          </div>
-        ))}
+      <input
+        type="text"
+        placeholder="Enter Account ID"
+        value={accountId}
+        onChange={(e) => setAccountId(e.target.value)}
+        style={{ padding: "8px", marginRight:   "10px" }}
+      />
+
+      <button onClick={handleReconcile}>Run Reconciliation</button>
+
+      <table border="1" style={{ marginTop: "20px", width: "100%" }}>
+        <thead>
+          <tr>
+            <th>Account ID</th>
+            <th>System Amount</th>
+            <th>Bank Amount</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          {Array.isArray(data) && data.map((item, index) => (
+            <tr key={index}>
+              <td>{item.accountId}</td>
+              <td>{item.systemAmount}</td>
+              <td>{item.bankAmount}</td>
+              <td
+                style={{
+                  color:
+                    item.status === "MATCHED"
+                      ? "green"
+                      : item.status === "MISMATCH"
+                      ? "red"
+                      : "orange",
+                }}
+              >
+                {item.status}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
-}
+};
 
 export default ReconcileTest;
